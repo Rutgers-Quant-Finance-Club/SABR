@@ -91,6 +91,14 @@ def dsigma_dalpha(F: float, K: float, T: float, alpha: float, beta:float, rho:fl
     dsig_dalp = (sigma_up-sigma)/eps
     return dsig_dalp
 
+def delta_BS(F: float,K: float,sigma:float,T:float,r:float,option:str):
+    d = d1(F,K,sigma,T)
+    if option == "call":
+        delta = np.exp(-r*T)*norm.cdf(d)
+        return delta
+    if option == "put":
+        delta = np.exp(-r*T)*(norm.cdf(d)-1)
+        return delta
 
 class SABRModel:
     """Convenience wrapper holding (α, β, ρ, ν) and exposing `.vol(F, K, T)`."""
@@ -113,7 +121,9 @@ class SABRModel:
         sigma = self.vol(F,K,T)
         return vega_BS(F,K,r,T,sigma)*dsigma_dalpha(F,K,T,self.alpha,self.beta,self.rho,self.nu)
         
-
+    def delta(self, F: float, K: float, T: float, r: float, option: str) -> float:
+        sigma = self.vol(F, K, T)
+        return delta_BS(F, K, sigma, T, r, option)
 
     def __repr__(self) -> str:
         return (
