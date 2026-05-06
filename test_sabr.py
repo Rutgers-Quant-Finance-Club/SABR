@@ -179,3 +179,26 @@ class TestValidation:
     def test_invalid_nu(self):
         with pytest.raises(ValueError):
             SABRModel(alpha=0.2, beta=0.5, rho=0.0, nu=-0.1)
+
+# ---------------------------------------------------------------------------
+# Delta tests
+# ---------------------------------------------------------------------------
+
+class TestDelta:
+
+    def setup_method(self):
+        self.model = SABRModel(alpha=0.2, beta=0.5, rho=-0.3, nu=0.4)
+        self.F, self.K, self.T, self.r = 100.0, 100.0, 1.0, 0.05
+    def test_call_delta_bounds(self):
+        d = self.model.delta(self.F, self.K, self.T, self.r, "call")
+        assert 0 < d < 1
+    def test_put_delta_bounds(self):
+        d = self.model.delta(self.F, self.K, self.T, self.r, "put")
+        assert -1 < d < 0
+    def test_put_call_parity(self):
+        d_call = self.model.delta(self.F, self.K, self.T, self.r, "call")
+        d_put  = self.model.delta(self.F, self.K, self.T, self.r, "put")
+        assert abs((d_call - d_put) - np.exp(-self.r * self.T)) < 1e-10
+    def test_invalid_option_type(self):
+        with pytest.raises(ValueError):
+            self.model.delta(self.F, self.K, self.T, self.r, "invalid")
