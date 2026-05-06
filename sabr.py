@@ -1,6 +1,6 @@
 """
-sabr_model.py
-=============
+sabr.py
+=======
 Hagan et al. (2002) SABR implied-volatility approximation.
 
 Parameters
@@ -8,10 +8,28 @@ Parameters
 alpha : initial (instantaneous) volatility  (α > 0)
 beta  : CEV exponent, fixed externally       (0 ≤ β ≤ 1)
 rho   : forward-vol correlation              (-1 < ρ < 1)
-nu    : volatility of volatility             (ν > 0)
+nu    : volatility of volatility             (ν ≥ 0)
 """
 
+from __future__ import annotations
+
 import numpy as np
+
+
+def _validate_market_inputs(F: float, K: float, T: float) -> None:
+    if F <= 0 or K <= 0 or T <= 0:
+        raise ValueError("F, K must be positive and T must be positive for SABR implied vol.")
+
+
+def _validate_sabr_params(alpha: float, beta: float, rho: float, nu: float) -> None:
+    if alpha <= 0:
+        raise ValueError("alpha must be positive.")
+    if not 0 <= beta <= 1:
+        raise ValueError("beta must lie in [0, 1].")
+    if not -1 < rho < 1:
+        raise ValueError("rho must lie strictly between -1 and 1.")
+    if nu < 0:
+        raise ValueError("nu must be non-negative.")
 
 
 def sabr_vol(F: float, K: float, T: float,
@@ -21,8 +39,7 @@ def sabr_vol(F: float, K: float, T: float,
     Single-strike SABR implied vol (Black-Scholes basis).
     Uses the ATM-limit formula when |F - K| < eps * F.
     """
-    if T <= 0:
-        return alpha
+    _validate_market_inputs(F, K, T)
 
     # ── ATM branch ───────────────────────────────────────────────────────────
     if abs(F - K) < eps * F:
@@ -58,3 +75,25 @@ def sabr_vol_vec(F: float, strikes: np.ndarray, T: float,
                  alpha: float, beta: float, rho: float, nu: float) -> np.ndarray:
     """Vectorised wrapper over an array of strikes."""
     return np.array([sabr_vol(F, K, T, alpha, beta, rho, nu) for K in strikes])
+
+
+class SABRModel:
+    """Convenience wrapper holding (α, β, ρ, ν) and exposing `.vol(F, K, T)`."""
+
+    __slots__ = ("alpha", "beta", "rho", "nu")
+
+    def __init__(self, alpha: float, beta: float, rho: float, nu: float) -> None:
+        _validate_sabr_params(alpha, beta, rho, nu)
+        self.alpha = float(alpha)
+        self.beta = float(beta)
+        self.rho = float(rho)
+        self.nu = float(nu)
+
+    def vol(self, F: float, K: float, T: float) -> float:
+        return sabr_vol(F, K, T, self.alpha, self.beta, self.rho, self.nu)
+
+    def __repr__(self) -> str:
+        return (
+            f"SABRModel(alpha={self.alpha}, beta={self.beta}, "
+            f"rho={self.rho}, nu={self.nu})"
+        )
