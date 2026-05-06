@@ -81,15 +81,20 @@ def d1(F,K,sigma,T):
     return (np.log(F/K)+0.5*(sigma**2)*T)/(sigma*np.sqrt(T))
 
 def vega_BS(F: float, K:float, r: float, T: float, sigma:float) -> float:
-        d = d1(F,K,sigma,T)
-        vega_BS = F * np.exp(-r*T) * norm.pdf(d) * np.sqrt(T)
-        return vega_BS
+    d = d1(F,K,sigma,T)
+    vega_BS = F * np.exp(-r*T) * norm.pdf(d) * np.sqrt(T)
+    return vega_BS
 def dsigma_dalpha(F: float, K: float, T: float, alpha: float, beta:float, rho:float, nu:float):
     eps = 1e-4
     sigma_up = sabr_vol(F,K,T,alpha+eps,beta,rho,nu)
     sigma = sabr_vol(F,K,T,alpha,beta,rho,nu)
     dsig_dalp = (sigma_up-sigma)/eps
     return dsig_dalp
+def dsigma_dF(F: float, K: float, T: float, alpha: float, beta: float, rho: float, nu: float):
+    eps = 1e-4
+    sigma_up = sabr_vol(F + eps, K, T, alpha, beta, rho, nu)
+    sigma = sabr_vol(F, K, T, alpha, beta, rho, nu)
+    return (sigma_up - sigma) / eps
 
 def delta_BS(F: float,K: float,sigma:float,T:float,r:float,option:str):
     d = d1(F,K,sigma,T)
@@ -99,6 +104,7 @@ def delta_BS(F: float,K: float,sigma:float,T:float,r:float,option:str):
     if option == "put":
         delta = np.exp(-r*T)*(norm.cdf(d)-1)
         return delta
+    raise ValueError(f"option must be 'call' or 'put', got '{option}'")
 
 class SABRModel:
     """Convenience wrapper holding (α, β, ρ, ν) and exposing `.vol(F, K, T)`."""
@@ -115,15 +121,13 @@ class SABRModel:
     def vol(self, F: float, K: float, T: float) -> float:
         return sabr_vol(F, K, T, self.alpha, self.beta, self.rho, self.nu)
     
-    #def delta(self, F: float, K: float, T: float, alpha: float, beta:float, rho:float, nu:float, r:float) -> float:
-
     def vega(self, F: float, K: float, T: float, r:float) -> float:
         sigma = self.vol(F,K,T)
         return vega_BS(F,K,r,T,sigma)*dsigma_dalpha(F,K,T,self.alpha,self.beta,self.rho,self.nu)
         
     def delta(self, F: float, K: float, T: float, r: float, option: str) -> float:
         sigma = self.vol(F, K, T)
-        return delta_BS(F, K, sigma, T, r, option)
+        return delta_BS(F, K, sigma, T, r, option)+vega_BS(F,K,r,T,sigma)*dsigma_dF(F,K,T,self.alpha,self.beta,self.rho,self.nu)
 
     def __repr__(self) -> str:
         return (
