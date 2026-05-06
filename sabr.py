@@ -14,6 +14,7 @@ nu    : volatility of volatility             (ν ≥ 0)
 from __future__ import annotations
 
 import numpy as np
+from scipy.stats import norm
 
 
 def _validate_market_inputs(F: float, K: float, T: float) -> None:
@@ -76,6 +77,15 @@ def sabr_vol_vec(F: float, strikes: np.ndarray, T: float,
     """Vectorised wrapper over an array of strikes."""
     return np.array([sabr_vol(F, K, T, alpha, beta, rho, nu) for K in strikes])
 
+def d1(F,K,sigma,T):
+    return (np.log(F/K)+0.5*(sigma**2)*T)/(sigma*np.sqrt(T))
+
+def vega_BS(F: float, K:float, r: float, T: float, sigma:float) -> float:
+        d = d1(F,K,sigma,T)
+        vega_BS = F * np.exp(-r*T) * norm.pdf(d) * np.sqrt(T)
+        return vega_BS
+
+
 
 class SABRModel:
     """Convenience wrapper holding (α, β, ρ, ν) and exposing `.vol(F, K, T)`."""
@@ -91,6 +101,12 @@ class SABRModel:
 
     def vol(self, F: float, K: float, T: float) -> float:
         return sabr_vol(F, K, T, self.alpha, self.beta, self.rho, self.nu)
+    
+    #def delta(self, F: float, K: float, T: float, alpha: float, beta:float, rho:float, nu:float, r:float) -> float:
+
+    #def vega(self, F: float, ):
+        
+
 
     def __repr__(self) -> str:
         return (
